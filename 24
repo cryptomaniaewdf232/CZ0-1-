@@ -1,0 +1,151 @@
+local CZ0 = {}
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+
+function CZ0:CreateWindow(options)
+    if not options or not options.Size then return nil end
+
+    local useAnimation = options.LoadingAnimation ~= false
+    local cornerRadius = options.CornerRadius or 6
+
+    local screenGui = Instance.new("ScreenGui", game:GetService("CoreGui"))
+    screenGui.Name = game:GetService("HttpService"):GenerateGUID(false)
+    screenGui.ResetOnSpawn = false
+
+    local window = Instance.new("Frame")
+    window.Name = game:GetService("HttpService"):GenerateGUID(false)
+    window.Size = options.Size
+    window.AnchorPoint = Vector2.new(0.5, 0.5)
+    window.Position = UDim2.new(0.5, 0, 0.5, 0)
+    window.BackgroundColor3 = Color3.new(0, 0, 0)
+    window.BorderSizePixel = 0
+    window.Parent = screenGui
+
+    Instance.new("UICorner", window).CornerRadius = UDim.new(0, cornerRadius)
+
+    if options.Title and options.Title.Text then
+        local titleLabel = Instance.new("TextLabel")
+        titleLabel.Size = UDim2.new(0, 200, 0, 30)
+        titleLabel.Position = UDim2.new(0, 10, 0, 2)
+        titleLabel.BackgroundTransparency = 1
+        titleLabel.Text = options.Title.Text
+        titleLabel.TextColor3 = options.Title.Color or Color3.fromRGB(255, 255, 255)
+        titleLabel.TextScaled = false
+        titleLabel.TextSize = options.Title.TextSize or 18
+        titleLabel.Font = Enum.Font.SourceSansBold
+        titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+        titleLabel.Parent = window
+    end
+
+    if useAnimation then
+        local initialSize = UDim2.new(
+            options.Size.X.Scale * 0.8,
+            options.Size.X.Offset * 0.8,
+            options.Size.Y.Scale * 0.8,
+            options.Size.Y.Offset * 0.8
+        )
+        window.Size = initialSize
+        window.Transparency = 1
+
+        local tweenInfo = TweenInfo.new(0.6, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+        local goal = { Size = options.Size, Transparency = 0 }
+        local openTween = TweenService:Create(window, tweenInfo, goal)
+        openTween:Play()
+    end
+
+    local windowObject = {}
+    windowObject.Window = window
+    windowObject.ScreenGui = screenGui
+
+    local tabHolder = Instance.new("ScrollingFrame")
+    tabHolder.Size = UDim2.new(1, -window.AbsoluteSize.X / 2, 0, 40)
+    tabHolder.Position = UDim2.new(0, window.AbsoluteSize.X / 2, 0, 0)
+    tabHolder.BackgroundTransparency = 1
+    tabHolder.BorderSizePixel = 0
+    tabHolder.ScrollBarThickness = 0
+    tabHolder.CanvasSize = UDim2.new(0, 0, 0, 0)
+    tabHolder.Parent = window
+
+    windowObject.tabHolder = tabHolder
+    windowObject.nextTabOffset = 0
+
+    local isDragging = false
+    local dragStart, startPos
+
+    local function startDrag(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            isDragging = true
+            dragStart = input.Position
+            startPos = window.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    isDragging = false
+                end
+            end)
+        end
+    end
+
+    local function updateDrag(input)
+        if isDragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = input.Position - dragStart
+            window.Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y
+            )
+        end
+    end
+
+    window.InputBegan:Connect(startDrag)
+    game:GetService("UserInputService").InputChanged:Connect(updateDrag)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseWheel then
+            local mouseLocation = UserInputService:GetMouseLocation()
+            local tabHolderPos = tabHolder.AbsolutePosition
+            local tabHolderSize = tabHolder.AbsoluteSize
+
+            if mouseLocation.X >= tabHolderPos.X and mouseLocation.X <= tabHolderPos.X + tabHolderSize.X and
+               mouseLocation.Y >= tabHolderPos.Y and mouseLocation.Y <= tabHolderPos.Y + tabHolderSize.Y then
+                local newPos = tabHolder.CanvasPosition - Vector2.new(0, input.Position.Z * 50)
+                tabHolder.CanvasPosition = Vector2.new(math.max(0, newPos.X), 0)
+            end
+        end
+    end)
+
+    function windowObject:Tab(options)
+        if not options or not options.Title then return nil end
+
+        local tabButton = Instance.new("TextButton")
+        tabButton.Size = UDim2.new(0, 100, 0, 30)
+        tabButton.Position = UDim2.new(0, self.nextTabOffset, 0, 5)
+        tabButton.BackgroundTransparency = 1
+        tabButton.BorderSizePixel = 0
+        tabButton.Text = options.Title
+        tabButton.TextColor3 = options.Color or Color3.fromRGB(255, 255, 255)
+        tabButton.Font = Enum.Font.SourceSansBold
+        tabButton.TextSize = options.TextSize or 16
+        tabButton.Parent = self.tabHolder
+
+        self.nextTabOffset = self.nextTabOffset + 52
+        self.tabHolder.CanvasSize = UDim2.new(0, self.nextTabOffset, 0, 0)
+
+        local tabContent = Instance.new("Frame")
+        tabContent.Name = "TabContent"
+        tabContent.Size = UDim2.new(1, -20, 1, -50)
+        tabContent.Position = UDim2.new(0, 10, 0, 40)
+        tabContent.BackgroundTransparency = 1
+        tabContent.Visible = false
+        tabContent.Parent = self.Window
+
+        return {
+            Button = tabButton,
+            Content = tabContent
+        }
+    end
+
+    return windowObject
+end
+
+return CZ0
