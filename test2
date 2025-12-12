@@ -1,0 +1,54 @@
+local CZ0 = {}
+
+function CZ0:CreateWindow(options)
+    if not options or not options.Size then return nil end
+
+    local screenGui = Instance.new("ScreenGui", game:GetService("CoreGui"))
+    screenGui.Name = game:GetService("HttpService"):GenerateGUID(false)
+    screenGui.ResetOnSpawn = false
+
+    local window = Instance.new("Frame")
+    window.Name = game:GetService("HttpService"):GenerateGUID(false)
+    window.Size = options.Size
+    window.Position = UDim2.new(0.5, -options.Size.X.Offset / 2, 0.5, -options.Size.Y.Offset / 2)
+    window.BackgroundColor3 = Color3.new(0, 0, 0)
+    window.BorderSizePixel = 0
+    window.Parent = screenGui
+
+    Instance.new("UICorner", window).CornerRadius = UDim.new(0, 6)
+
+    local isDragging = false
+    local dragStart, startPos
+
+    local function startDrag(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            isDragging = true
+            dragStart = input.Position
+            startPos = window.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    isDragging = false
+                end
+            end)
+        end
+    end
+
+    local function updateDrag(input)
+        if isDragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = input.Position - dragStart
+            window.Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y
+            )
+        end
+    end
+
+    window.InputBegan:Connect(startDrag)
+    game:GetService("UserInputService").InputChanged:Connect(updateDrag)
+
+    return { ScreenGui = screenGui, Window = window }
+end
+
+return CZ0
